@@ -19,11 +19,11 @@
 
 ## 단계별 구현
 
-1. **Phase 1 / Wi-Fi Debug**
+1. **Phase 1 / Wi-Fi Debug — 완료**
    - Kotlin, Compose, MVVM, Navigation
    - 권한 처리
    - 연결 AP와 주변 AP 실제 데이터/freshness 표시
-2. **Phase 2 / 평면도**
+2. **Phase 2 / 평면도 — 완료**
    - 이미지 선택, Zoom/Pan, normalized tap coordinate
 3. **Phase 3 / Calibration**
    - 두 점 선택, 실제 거리 입력, pixel-to-meter 변환
@@ -36,7 +36,7 @@
 7. **Phase 10 / Mesh 분석**
    - Connected AP와 Best AP 비교, roaming candidate 표시
 
-## 이번 단계 완료 기준
+## Phase 1 완료 결과
 
 - 실제 Android 기기에서 권한 요청이 동작한다.
 - 연결 AP의 SSID, BSSID, RSSI, Frequency, Link Speed가 표시된다.
@@ -44,3 +44,14 @@
 - Active Scan 실패/제한 시 OS가 보유한 캐시 결과를 표시한다.
 - Wi-Fi API 호출은 `wifi` 패키지 밖에서 수행하지 않는다.
 - Gradle build와 최소 Unit Test가 통과한다.
+
+## Phase 2 완료 결과
+
+- 기본 평면도와 PNG/JPEG 사용자 이미지를 표시한다.
+- 이미지 원본 비율을 유지한 fit-center 좌표계를 사용한다.
+- 한 손가락 Pan, 두 손가락 1~5배 Zoom을 지원한다.
+- 현재 변환 상태에서 탭한 지점을 normalized coordinate로 계산한다.
+- Zoom/Pan 초기화를 지원한다.
+- 좌표 정규화 Unit Test와 Debug APK 빌드가 통과한다.
+
+다음 단계는 **Phase 3 Calibration**이다. 평면도에서 두 점을 선택하고 실제 거리를 입력해 pixel-to-meter scale을 계산한다.

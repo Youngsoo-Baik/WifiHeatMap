@@ -1,6 +1,6 @@
 # Wi-Fi Heatmap MVP
 
-첨부 구현 명세를 기준으로 단계적으로 재구성 중인 Android 프로젝트입니다. 현재 실행 화면은 **Phase 1 Wi-Fi Debug Screen**이며, 실제 Android 기기에서 Wi-Fi 데이터 수집의 신뢰성을 먼저 검증합니다.
+첨부 구현 명세를 기준으로 단계적으로 재구성 중인 Android 프로젝트입니다. 현재 **Phase 1 Wi-Fi Debug**와 **Phase 2 평면도 좌표 선택**까지 구현되어 있습니다.
 
 ## 현재 구현
 
@@ -18,6 +18,12 @@
 - Active Scan이 제한되면 캐시된 ScanResult 표시
 - Wi-Fi API를 `wifi` 패키지로 분리
 - 주파수 대역 변환 Unit Test
+- 기본 평면도 표시 및 PNG/JPEG 선택
+- 평면도 원본 비율 fit-center 표시
+- 한 손가락 Pan과 두 손가락 1~5배 Zoom
+- Zoom/Pan 상태를 반영한 탭 좌표 선택
+- 해상도에 독립적인 0~1 normalized 좌표 계산
+- 좌표 정규화 Unit Test
 
 기존 Java Canvas 평면도·히트맵 프로토타입은 후속 Compose Survey 화면 마이그레이션을 위해 소스에 보존되어 있으며 현재 Launcher 화면에서는 사용하지 않습니다.
 
@@ -28,6 +34,7 @@
 3. 실제 Android 기기를 연결합니다.
 4. `app` 실행 구성을 선택하고 Run을 누릅니다.
 5. 위치 및 근처 기기 권한을 허용하고 기기의 위치 서비스를 켭니다.
+6. `Phase 2 · 평면도 열기`를 눌러 기본 또는 사용자 평면도에서 Zoom/Pan과 좌표 선택을 확인합니다.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -51,6 +58,6 @@ app/build/outputs/apk/debug/app-debug.apk
 
 - Android 에뮬레이터는 실제 Wi-Fi radio/BSSID 측정을 재현하지 못하므로 실제 기기 검증이 필요합니다.
 - Active Scan은 Android throttling 정책에 따라 실패할 수 있으며 이 경우 캐시 결과가 표시됩니다.
-- 평면도, Calibration, Survey, Compose Heatmap은 다음 단계에서 구현합니다.
+- Calibration, Survey, Compose Heatmap은 다음 단계에서 구현합니다.
 
 전체 차이 분석과 단계 계획은 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)를 참고하세요.

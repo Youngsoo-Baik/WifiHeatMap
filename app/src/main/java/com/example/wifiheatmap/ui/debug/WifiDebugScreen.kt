@@ -52,7 +52,10 @@ import com.example.wifiheatmap.viewmodel.WifiDebugViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WifiDebugScreen(viewModel: WifiDebugViewModel = viewModel()) {
+fun WifiDebugScreen(
+    onOpenFloorPlan: () -> Unit,
+    viewModel: WifiDebugViewModel = viewModel(),
+) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var permissionsGranted by remember { mutableStateOf(hasWifiPermissions(context)) }
@@ -106,6 +109,11 @@ fun WifiDebugScreen(viewModel: WifiDebugViewModel = viewModel()) {
                         scanResultsUpdated = uiState.snapshot?.scanResultsUpdated,
                         onRefresh = { viewModel.refresh(requestActiveScan = true) },
                     )
+                }
+                item {
+                    Button(onClick = onOpenFloorPlan, modifier = Modifier.fillMaxWidth()) {
+                        Text("Phase 2 · 평면도 열기")
+                    }
                 }
                 uiState.errorMessage?.let { error ->
                     item { ErrorCard(error) }
