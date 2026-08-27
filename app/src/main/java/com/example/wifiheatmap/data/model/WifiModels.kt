@@ -32,7 +32,7 @@ data class NearbyAccessPoint(
     val rssi: Int,
     val frequencyMhz: Int,
     val channel: Int?,
-    val channelWidth: Int,
+    val channelWidth: Int?,
     val ageMillis: Long?,
 ) {
     val band: WifiBand = WifiBand.fromFrequency(frequencyMhz)

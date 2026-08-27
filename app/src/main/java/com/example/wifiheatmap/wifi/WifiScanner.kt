@@ -1,6 +1,7 @@
 package com.example.wifiheatmap.wifi
 
 import android.annotation.SuppressLint
+import androidx.core.content.ContextCompat
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -23,8 +24,8 @@ import kotlin.math.max
 
 class WifiScanner(context: Context) {
     private val appContext = context.applicationContext
-    private val wifiManager = appContext.getSystemService(WifiManager::class.java)
-    private val connectivityManager = appContext.getSystemService(ConnectivityManager::class.java)
+    private val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    private val connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     @SuppressLint("MissingPermission")
     suspend fun readSnapshot(requestActiveScan: Boolean): WifiSnapshot {
@@ -69,7 +70,7 @@ class WifiScanner(context: Context) {
         val validBssid = wifiInfo.bssid?.takeUnless { it == REDACTED_BSSID }
         val validSsid = wifiInfo.ssid
             ?.removeSurrounding("\"")
-            ?.takeUnless { it == WifiManager.UNKNOWN_SSID }
+            ?.takeUnless { it == UNKNOWN_SSID_COMPAT }
         return ConnectedWifi(
             ssid = validSsid,
             bssid = validBssid,
@@ -99,7 +100,9 @@ class WifiScanner(context: Context) {
                     rssi = result.level,
                     frequencyMhz = result.frequency,
                     channel = frequencyToChannel(result.frequency),
-                    channelWidth = result.channelWidth,
+                    channelWidth = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        result.channelWidth
+                    } else null,
                     ageMillis = result.timestamp
                         .takeIf { it > 0L }
                         ?.let { max(0L, (nowMicros - it) / 1_000L) },
@@ -110,7 +113,7 @@ class WifiScanner(context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    @SuppressLint("MissingPermission")
+    @SuppressLint("MissingPermission", "WrongConstant")
     private suspend fun awaitActiveScan(): Boolean? = withTimeoutOrNull(SCAN_TIMEOUT_MILLIS) {
         suspendCancellableCoroutine { continuation ->
             var registered = false
@@ -125,7 +128,11 @@ class WifiScanner(context: Context) {
             receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action != WifiManager.SCAN_RESULTS_AVAILABLE_ACTION) return
-                    val updated = intent.getBooleanExtra(WifiManager.EXTRA_RESULTS_UPDATED, false)
+                    val updated = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        intent?.getBooleanExtra(EXTRA_RESULTS_UPDATED_COMPAT, false) ?: false
+                    } else {
+                        true
+                    }
                     unregisterReceiver()
                     if (continuation.isActive) continuation.resume(updated)
                 }
@@ -133,7 +140,7 @@ class WifiScanner(context: Context) {
 
             val filter = IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                appContext.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                appContext.registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED_COMPAT)
             } else {
                 appContext.registerReceiver(receiver, filter)
             }
@@ -159,5 +166,8 @@ class WifiScanner(context: Context) {
     private companion object {
         const val REDACTED_BSSID = "02:00:00:00:00:00"
         const val SCAN_TIMEOUT_MILLIS = 5_000L
+        const val UNKNOWN_SSID_COMPAT = "<unknown ssid>"
+        const val EXTRA_RESULTS_UPDATED_COMPAT = "resultsUpdated"
+        const val RECEIVER_NOT_EXPORTED_COMPAT = 2
     }
 }
