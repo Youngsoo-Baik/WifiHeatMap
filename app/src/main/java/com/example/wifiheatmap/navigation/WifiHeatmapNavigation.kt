@@ -9,12 +9,14 @@ import com.example.wifiheatmap.ui.debug.WifiDebugScreen
 import com.example.wifiheatmap.ui.floorplan.CalibrationScreen
 import com.example.wifiheatmap.ui.floorplan.FloorPlanScreen
 import com.example.wifiheatmap.ui.survey.SurveyScreen
+import com.example.wifiheatmap.ui.heatmap.HeatmapScreen
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 
 private const val WIFI_DEBUG_ROUTE = "wifi_debug"
 private const val FLOOR_PLAN_ROUTE = "floor_plan"
 private const val CALIBRATION_ROUTE = "calibration"
 private const val SURVEY_ROUTE = "survey"
+private const val HEATMAP_ROUTE = "heatmap"
 
 @Composable
 fun WifiHeatmapNavigation() {
@@ -41,7 +43,14 @@ fun WifiHeatmapNavigation() {
         composable(SURVEY_ROUTE) {
             SurveyScreen(
                 onBack = { navController.popBackStack() },
-                onOpenHeatmap = { },
+                onOpenHeatmap = { navController.navigate(HEATMAP_ROUTE) },
+                viewModel = floorPlanViewModel,
+            )
+        }
+        composable(HEATMAP_ROUTE) {
+            HeatmapScreen(
+                onBack = { navController.popBackStack() },
+                onNext = { },
                 viewModel = floorPlanViewModel,
             )
         }

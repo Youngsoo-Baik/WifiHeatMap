@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.wifiheatmap.floorplan.FloorPlanCoordinates
 import com.example.wifiheatmap.floorplan.NormalizedPoint
+import com.example.wifiheatmap.heatmap.HeatmapGrid
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 import kotlin.math.max
 import kotlin.math.min
@@ -174,6 +175,7 @@ fun FloorPlanScreen(
 internal fun FloorPlanCanvas(
     bitmap: Bitmap,
     markers: List<FloorPlanMarker>,
+    heatmap: HeatmapGrid? = null,
     resetToken: Int,
     onPointSelected: (NormalizedPoint) -> Unit,
 ) {
@@ -251,6 +253,20 @@ internal fun FloorPlanCanvas(
             size = Size(bounds.width, bounds.height),
             style = Stroke(width = 1.dp.toPx()),
         )
+        heatmap?.let { grid ->
+            val cellWidth = bounds.width / grid.columns
+            val cellHeight = bounds.height / grid.rows
+            repeat(grid.rows) { row ->
+                repeat(grid.columns) { column ->
+                    val cell = grid[column, row]
+                    drawRect(
+                        color = heatmapColor(cell.value, cell.isTrusted),
+                        topLeft = Offset(bounds.left + column * cellWidth, bounds.top + row * cellHeight),
+                        size = Size(cellWidth + 1f, cellHeight + 1f),
+                    )
+                }
+            }
+        }
         markers.forEach { floorPlanMarker ->
             val point = floorPlanMarker.point
             val marker = Offset(
@@ -281,6 +297,17 @@ internal fun FloorPlanCanvas(
             }
         }
     }
+}
+
+private fun heatmapColor(rssi: Double, trusted: Boolean): Color {
+    if (!trusted) return Color(0x665B6472)
+    val color = when {
+        rssi >= -55 -> Color(0xFF16A34A)
+        rssi >= -67 -> Color(0xFFEAB308)
+        rssi >= -75 -> Color(0xFFF97316)
+        else -> Color(0xFFDC2626)
+    }
+    return color.copy(alpha = 0.48f)
 }
 
 internal data class FloorPlanMarker(
