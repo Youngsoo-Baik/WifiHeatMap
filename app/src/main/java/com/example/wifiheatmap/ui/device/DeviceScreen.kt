@@ -5,11 +5,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -19,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -31,8 +35,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.wifiheatmap.data.model.WifiBand
 import com.example.wifiheatmap.device.WifiDeviceType
 import com.example.wifiheatmap.ui.floorplan.FloorPlanCanvas
 import com.example.wifiheatmap.ui.floorplan.FloorPlanMarker
@@ -110,17 +117,29 @@ fun DeviceScreen(
                         }
                     }
                     uiState.deviceCandidateError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
                     ) {
-                        candidates.forEach { (bssid, ssid, frequency) ->
-                            TextButton(onClick = {
-                                val current = bssids.split(',').map { it.trim() }.filter { it.isNotBlank() }
-                                bssids = (current + bssid).distinct().joinToString(", ")
-                            }) {
-                                Text("${ssid ?: "숨김"} · $bssid · ${frequency ?: 0}MHz", style = MaterialTheme.typography.labelSmall)
-                            }
+                        items(candidates) { (bssid, ssid, frequency) ->
+                            val currentBssids = bssids.split(',').map { it.trim().lowercase() }
+                            val isSelected = bssid.lowercase() in currentBssids
+                            BssidCandidateChip(
+                                ssid = ssid,
+                                bssid = bssid,
+                                frequencyMhz = frequency,
+                                isSelected = isSelected,
+                                onClick = {
+                                    val current = bssids.split(',').map { it.trim() }.filter { it.isNotBlank() }
+                                    if (bssid !in current) {
+                                        bssids = (current + bssid).joinToString(", ")
+                                        if (name.isBlank()) {
+                                            name = ssid ?: "AP-${bssid.takeLast(5).replace(":", "")}"
+                                        }
+                                    }
+                                },
+                            )
                         }
                     }
                     OutlinedTextField(
@@ -139,6 +158,7 @@ fun DeviceScreen(
                             onClick = {
                                 viewModel.addDevice(name, type, bssids)
                                 name = ""
+                                bssids = ""
                             },
                             modifier = Modifier.weight(1f),
                             enabled = uiState.selectedPoint != null && name.isNotBlank(),
@@ -147,6 +167,48 @@ fun DeviceScreen(
                 }
             }
             Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 신호 측정") }
+        }
+    }
+}
+
+@Composable
+private fun BssidCandidateChip(
+    ssid: String?,
+    bssid: String,
+    frequencyMhz: Int?,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color(0xFFF1F5F9),
+        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = ssid ?: "숨김 네트워크",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = bssid,
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            frequencyMhz?.let {
+                val band = WifiBand.fromFrequency(it)
+                Text(
+                    text = "${band.displayName} · $it MHz",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                )
+            }
         }
     }
 }
