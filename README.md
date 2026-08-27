@@ -34,6 +34,13 @@
 - 벽 감쇠 전파 모델 + 잔차 IDW 하이브리드 히트맵
 - 연결 AP와 최적 AP 비교 및 12 dB 로밍 후보 표시
 - 측정 프로젝트 JSON 저장·불러오기
+- 실측 거리 기반 AP별 Strong/Good/Usable 예상 Coverage 동심원
+- 결과 전환: Coverage / Heatmap / Weak Zone
+- 신호 소스 전환: 장비별 / 전체 Mesh / 실제 Connected AP
+- Band 필터: All / 2.4 / 5 / 6 GHz
+- 사용자 설정 음영 임계값과 HIGH/MEDIUM/LOW/UNMEASURED 신뢰도
+- 장비 화면의 주변 BSSID 후보 검색 및 Band별 Radio 저장
+- `project.json + floorplan.png` 프로젝트 묶음 저장과 기존 JSON 호환 로드
 
 기존 Java Canvas 평면도·히트맵 프로토타입은 후속 Compose Survey 화면 마이그레이션을 위해 소스에 보존되어 있으며 현재 Launcher 화면에서는 사용하지 않습니다.
 
@@ -44,7 +51,7 @@
 3. 실제 Android 기기를 연결합니다.
 4. `app` 실행 구성을 선택하고 Run을 누릅니다.
 5. 위치 및 근처 기기 권한을 허용하고 기기의 위치 서비스를 켭니다.
-6. `Phase 2 · 평면도 열기`부터 화면 하단의 다음 버튼을 따라 Phase 10까지 진행합니다.
+6. 평면도 → Calibration → 벽 → 장비/BSSID → Survey → 결과 화면 순서로 진행합니다.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -55,7 +62,7 @@ Debug APK:
 
 ```text
 app/build/outputs/apk/debug/app-debug.apk
-releases/wifi-heatmap-v1.0.0-debug.apk
+releases/wifi-heatmap-v1.1.0-debug.apk
 ```
 
 ## 권한

@@ -138,7 +138,7 @@ fun CalibrationScreen(
                 onClick = onOpenSurvey,
                 enabled = uiState.calibration != null,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("다음 · 신호 측정") }
+            ) { Text("다음 · 벽 자동 인식") }
         }
     }
 }

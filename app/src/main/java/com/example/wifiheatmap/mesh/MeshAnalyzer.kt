@@ -19,10 +19,10 @@ object MeshAnalyzer {
         roamingThresholdDb: Int = 12,
     ): MeshAnalysis {
         val connectedDevice = devices.firstOrNull { device ->
-            measurement.bssid?.lowercase() in device.bssids
+            measurement.bssid?.lowercase() in device.mappedBssids
         }
         val mappedResults = measurement.nearbyAccessPoints.mapNotNull { accessPoint ->
-            devices.firstOrNull { accessPoint.bssid.lowercase() in it.bssids }?.let { it to accessPoint.rssi }
+            devices.firstOrNull { accessPoint.bssid.lowercase() in it.mappedBssids }?.let { it to accessPoint.rssi }
         }
         val best = mappedResults.maxByOrNull { it.second }
         val shouldRoam = best != null && connectedDevice != null && best.first.id != connectedDevice.id &&

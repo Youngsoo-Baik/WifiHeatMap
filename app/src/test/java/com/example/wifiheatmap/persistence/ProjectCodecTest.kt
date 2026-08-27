@@ -18,5 +18,6 @@ class ProjectCodecTest {
         val decoded = ProjectCodec.decode(ProjectCodec.encode(project))
         assertEquals("Router", decoded.devices.single().name)
         assertEquals(0.2f, decoded.devices.single().point.x)
+        assertEquals(-70, decoded.settings?.deadZoneThreshold)
     }
 }

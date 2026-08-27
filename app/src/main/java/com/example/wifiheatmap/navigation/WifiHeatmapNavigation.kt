@@ -44,7 +44,7 @@ fun WifiHeatmapNavigation() {
         composable(CALIBRATION_ROUTE) {
             CalibrationScreen(
                 onBack = { navController.popBackStack() },
-                onOpenSurvey = { navController.navigate(SURVEY_ROUTE) },
+                onOpenSurvey = { navController.navigate(WALL_ROUTE) },
                 viewModel = floorPlanViewModel,
             )
         }
@@ -58,21 +58,21 @@ fun WifiHeatmapNavigation() {
         composable(HEATMAP_ROUTE) {
             HeatmapScreen(
                 onBack = { navController.popBackStack() },
-                onNext = { navController.navigate(DEVICE_ROUTE) },
+                onNext = { navController.navigate(HYBRID_ROUTE) },
                 viewModel = floorPlanViewModel,
             )
         }
         composable(DEVICE_ROUTE) {
             DeviceScreen(
                 onBack = { navController.popBackStack() },
-                onNext = { navController.navigate(WALL_ROUTE) },
+                onNext = { navController.navigate(SURVEY_ROUTE) },
                 viewModel = floorPlanViewModel,
             )
         }
         composable(WALL_ROUTE) {
             WallEditorScreen(
                 onBack = { navController.popBackStack() },
-                onNext = { navController.navigate(HYBRID_ROUTE) },
+                onNext = { navController.navigate(DEVICE_ROUTE) },
                 viewModel = floorPlanViewModel,
             )
         }

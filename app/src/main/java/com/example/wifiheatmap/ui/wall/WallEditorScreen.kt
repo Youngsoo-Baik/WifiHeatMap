@@ -69,14 +69,17 @@ fun WallEditorScreen(onBack: () -> Unit, onNext: () -> Unit, viewModel: FloorPla
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("벽 ${uiState.walls.size}개 · 두 지점을 탭하면 수동 벽 추가")
                     uiState.wallError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    Button(onClick = viewModel::detectWalls, modifier = Modifier.fillMaxWidth()) { Text("자동 감지") }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Button(onClick = viewModel::detectWalls, modifier = Modifier.weight(1f)) { Text("자동 감지") }
                         OutlinedButton(onClick = viewModel::deleteNearestWall, modifier = Modifier.weight(1f)) { Text("근처 삭제") }
                         OutlinedButton(onClick = viewModel::toggleNearestWallOpening, modifier = Modifier.weight(1f)) { Text("개구부 전환") }
+                        OutlinedButton(onClick = viewModel::selectNearestWallForMove, modifier = Modifier.weight(1f)) {
+                            Text(if (uiState.wallMoveId == null) "위치 수정" else "새 위치 탭")
+                        }
                     }
                 }
             }
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 벽 반영 히트맵") }
+            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 장비 설정") }
         }
     }
 }

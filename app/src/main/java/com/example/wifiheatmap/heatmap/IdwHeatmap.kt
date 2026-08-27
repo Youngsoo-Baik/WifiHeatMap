@@ -6,10 +6,15 @@ import kotlin.math.pow
 
 data class HeatmapSample(val point: NormalizedPoint, val value: Double)
 
-data class HeatmapCell(
-    val value: Double,
-    val isTrusted: Boolean,
-)
+enum class HeatmapConfidence { HIGH, MEDIUM, LOW, UNMEASURED }
+
+data class HeatmapCell(val value: Double, val confidence: HeatmapConfidence) {
+    constructor(value: Double, isTrusted: Boolean) : this(
+        value,
+        if (isTrusted) HeatmapConfidence.MEDIUM else HeatmapConfidence.UNMEASURED,
+    )
+    val isTrusted: Boolean get() = confidence != HeatmapConfidence.UNMEASURED
+}
 
 data class HeatmapGrid(
     val columns: Int,
@@ -47,7 +52,15 @@ object IdwHeatmap {
                         }
                         weightedSum / weightSum
                     }
-                    add(HeatmapCell(value, distances.minOf { it.second } <= trustRadius))
+                    val nearbyCount = distances.count { it.second <= trustRadius }
+                    val nearest = distances.minOf { it.second }
+                    val confidence = when {
+                        nearest > trustRadius -> HeatmapConfidence.UNMEASURED
+                        nearbyCount >= 4 && nearest <= trustRadius / 2 -> HeatmapConfidence.HIGH
+                        nearbyCount >= 2 -> HeatmapConfidence.MEDIUM
+                        else -> HeatmapConfidence.LOW
+                    }
+                    add(HeatmapCell(value, confidence))
                 }
             }
         }

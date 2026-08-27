@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -25,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,10 +47,17 @@ fun DeviceScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf("") }
-    var bssids by remember(uiState.measurements) {
-        mutableStateOf(uiState.measurements.mapNotNull { it.bssid }.distinct().joinToString(", "))
-    }
+    var bssids by remember { mutableStateOf("") }
     var type by remember { mutableStateOf(WifiDeviceType.ROUTER) }
+    LaunchedEffect(Unit) { viewModel.scanDeviceCandidates() }
+    val candidates = remember(uiState.measurements, uiState.deviceCandidates) {
+        (uiState.measurements.flatMap { measurement ->
+            listOfNotNull(
+                measurement.bssid?.let { Triple(it, measurement.ssid, measurement.frequencyMhz) },
+            ) + measurement.nearbyAccessPoints.map { Triple(it.bssid, it.ssid, it.frequencyMhz) }
+        } + uiState.deviceCandidates.map { Triple(it.bssid, it.ssid, it.frequencyMhz) })
+            .distinctBy { it.first.lowercase() }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -93,6 +103,26 @@ fun DeviceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("감지된 BSSID 후보 · 탭하여 추가", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
+                        TextButton(onClick = viewModel::scanDeviceCandidates, enabled = !uiState.isScanningDeviceCandidates) {
+                            Text(if (uiState.isScanningDeviceCandidates) "검색 중…" else "다시 검색")
+                        }
+                    }
+                    uiState.deviceCandidateError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        candidates.forEach { (bssid, ssid, frequency) ->
+                            TextButton(onClick = {
+                                val current = bssids.split(',').map { it.trim() }.filter { it.isNotBlank() }
+                                bssids = (current + bssid).distinct().joinToString(", ")
+                            }) {
+                                Text("${ssid ?: "숨김"} · $bssid · ${frequency ?: 0}MHz", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
                     OutlinedTextField(
                         value = bssids,
                         onValueChange = { bssids = it },
@@ -116,7 +146,7 @@ fun DeviceScreen(
                     }
                 }
             }
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 벽 편집") }
+            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 신호 측정") }
         }
     }
 }

@@ -34,8 +34,8 @@ fun HybridHeatmapScreen(onBack: () -> Unit, onNext: () -> Unit, viewModel: Floor
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val device = uiState.devices.firstOrNull { it.id == uiState.selectedHeatmapDeviceId } ?: uiState.devices.firstOrNull()
     val measurements = remember(uiState.measurements, device) {
-        if (device == null || device.bssids.isEmpty()) uiState.measurements else uiState.measurements.filter {
-            it.bssid?.lowercase() in device.bssids
+        if (device == null || device.mappedBssids.isEmpty()) uiState.measurements else uiState.measurements.filter {
+            it.bssid?.lowercase() in device.mappedBssids
         }
     }
     val heatmap = remember(device, measurements, uiState.walls, uiState.calibration, uiState.bitmap) {

@@ -23,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.wifiheatmap.floorplan.FloorPlanCoordinates
 import com.example.wifiheatmap.floorplan.NormalizedPoint
 import com.example.wifiheatmap.heatmap.HeatmapGrid
+import com.example.wifiheatmap.heatmap.HeatmapConfidence
 import com.example.wifiheatmap.wall.WallSegment
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 import kotlin.math.max
@@ -119,6 +121,15 @@ fun FloorPlanScreen(
                 }
             }
 
+            OutlinedTextField(
+                value = uiState.projectName,
+                onValueChange = viewModel::setProjectName,
+                label = { Text("프로젝트 이름") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                trailingIcon = { TextButton(onClick = viewModel::newProject) { Text("새 프로젝트") } },
+            )
+
             Text(
                 text = uiState.sourceName,
                 style = MaterialTheme.typography.bodySmall,
@@ -178,6 +189,9 @@ internal fun FloorPlanCanvas(
     markers: List<FloorPlanMarker>,
     heatmap: HeatmapGrid? = null,
     walls: List<WallSegment> = emptyList(),
+    coverageRings: List<FloorPlanCoverageRing> = emptyList(),
+    deadZoneOnly: Boolean = false,
+    deadZoneThreshold: Int = -70,
     resetToken: Int,
     onPointSelected: (NormalizedPoint) -> Unit,
 ) {
@@ -262,12 +276,30 @@ internal fun FloorPlanCanvas(
                 repeat(grid.columns) { column ->
                     val cell = grid[column, row]
                     drawRect(
-                        color = heatmapColor(cell.value, cell.isTrusted),
+                        color = heatmapColor(cell.value, cell.confidence, deadZoneOnly, deadZoneThreshold),
                         topLeft = Offset(bounds.left + column * cellWidth, bounds.top + row * cellHeight),
                         size = Size(cellWidth + 1f, cellHeight + 1f),
                     )
                 }
             }
+        }
+        coverageRings.forEach { ring ->
+            val center = Offset(
+                bounds.left + bounds.width * ring.point.x,
+                bounds.top + bounds.height * ring.point.y,
+            )
+            val displayedRadius = ring.radiusPixels * bounds.width / bitmap.width
+            drawCircle(
+                color = ring.color.copy(alpha = 0.18f),
+                radius = displayedRadius,
+                center = center,
+            )
+            drawCircle(
+                color = ring.color.copy(alpha = 0.8f),
+                radius = displayedRadius,
+                center = center,
+                style = Stroke(width = 2.dp.toPx()),
+            )
         }
         walls.forEach { wall ->
             drawLine(
@@ -309,21 +341,41 @@ internal fun FloorPlanCanvas(
     }
 }
 
-private fun heatmapColor(rssi: Double, trusted: Boolean): Color {
-    if (!trusted) return Color(0x665B6472)
+private fun heatmapColor(
+    rssi: Double,
+    confidence: HeatmapConfidence,
+    deadZoneOnly: Boolean,
+    deadZoneThreshold: Int,
+): Color {
+    if (confidence == HeatmapConfidence.UNMEASURED) return Color(0x665B6472)
+    if (deadZoneOnly) {
+        return if (rssi < deadZoneThreshold) Color(0x99DC2626) else Color(0x2216A34A)
+    }
     val color = when {
         rssi >= -55 -> Color(0xFF16A34A)
         rssi >= -67 -> Color(0xFFEAB308)
         rssi >= -75 -> Color(0xFFF97316)
         else -> Color(0xFFDC2626)
     }
-    return color.copy(alpha = 0.48f)
+    val alpha = when (confidence) {
+        HeatmapConfidence.HIGH -> 0.58f
+        HeatmapConfidence.MEDIUM -> 0.46f
+        HeatmapConfidence.LOW -> 0.30f
+        HeatmapConfidence.UNMEASURED -> 0f
+    }
+    return color.copy(alpha = alpha)
 }
 
 internal data class FloorPlanMarker(
     val point: NormalizedPoint,
     val color: Color,
     val label: String? = null,
+)
+
+internal data class FloorPlanCoverageRing(
+    val point: NormalizedPoint,
+    val radiusPixels: Float,
+    val color: Color,
 )
 
 @Composable

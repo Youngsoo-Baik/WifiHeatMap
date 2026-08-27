@@ -1,5 +1,6 @@
 package com.example.wifiheatmap.device
 
+import com.example.wifiheatmap.data.model.WifiBand
 import com.example.wifiheatmap.floorplan.NormalizedPoint
 
 enum class WifiDeviceType(val displayName: String) {
@@ -15,4 +16,15 @@ data class WifiDevice(
     val type: WifiDeviceType,
     val point: NormalizedPoint,
     val bssids: Set<String>,
+    val radios: List<WifiRadio> = emptyList(),
+) {
+    val mappedBssids: Set<String>
+        get() = bssids + radios.map { it.bssid.lowercase() }
+}
+
+data class WifiRadio(
+    val bssid: String,
+    val ssid: String?,
+    val band: WifiBand,
+    val frequencyMhz: Int?,
 )
