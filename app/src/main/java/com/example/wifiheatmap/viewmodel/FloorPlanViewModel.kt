@@ -9,6 +9,10 @@ import com.example.wifiheatmap.calibration.CalibrationData
 import com.example.wifiheatmap.calibration.CalibrationService
 import com.example.wifiheatmap.floorplan.FloorPlanRepository
 import com.example.wifiheatmap.floorplan.NormalizedPoint
+import com.example.wifiheatmap.survey.RssiStatistics
+import com.example.wifiheatmap.survey.SurveyMeasurement
+import com.example.wifiheatmap.wifi.WifiRepository
+import com.example.wifiheatmap.wifi.WifiScanner
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,12 +26,16 @@ data class FloorPlanUiState(
     val calibrationSecondPoint: NormalizedPoint? = null,
     val calibration: CalibrationData? = null,
     val calibrationError: String? = null,
+    val measurements: List<SurveyMeasurement> = emptyList(),
+    val isMeasuring: Boolean = false,
+    val surveyError: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
 
 class FloorPlanViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FloorPlanRepository(application)
+    private val wifiRepository = WifiRepository(WifiScanner(application))
     private val mutableUiState = MutableStateFlow(
         FloorPlanUiState(bitmap = repository.loadDefault()),
     )
@@ -110,5 +118,57 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         }.onFailure { error ->
             mutableUiState.value = state.copy(calibrationError = error.message)
         }
+    }
+
+    fun measureSelectedPoint() {
+        val point = mutableUiState.value.selectedPoint ?: return
+        if (mutableUiState.value.isMeasuring) return
+        viewModelScope.launch {
+            mutableUiState.value = mutableUiState.value.copy(isMeasuring = true, surveyError = null)
+            runCatching { wifiRepository.collectConnectedRssiSamples() }
+                .onSuccess { (samples, snapshot) ->
+                    if (samples.isEmpty()) {
+                        mutableUiState.value = mutableUiState.value.copy(
+                            isMeasuring = false,
+                            surveyError = "연결된 Wi-Fi RSSI를 읽지 못했습니다. 위치 권한과 Wi-Fi 연결을 확인하세요.",
+                        )
+                        return@onSuccess
+                    }
+                    val connected = snapshot.connectedWifi
+                    val measurement = SurveyMeasurement(
+                        id = System.currentTimeMillis(),
+                        point = point,
+                        ssid = connected?.ssid,
+                        bssid = connected?.bssid,
+                        medianRssi = RssiStatistics.median(samples),
+                        frequencyMhz = connected?.frequencyMhz,
+                        samples = samples,
+                        nearbyAccessPoints = snapshot.nearbyAccessPoints,
+                        measuredAtMillis = snapshot.capturedAtMillis,
+                    )
+                    mutableUiState.value = mutableUiState.value.copy(
+                        measurements = mutableUiState.value.measurements + measurement,
+                        isMeasuring = false,
+                    )
+                }
+                .onFailure { error ->
+                    mutableUiState.value = mutableUiState.value.copy(
+                        isMeasuring = false,
+                        surveyError = error.message ?: "신호 측정에 실패했습니다.",
+                    )
+                }
+        }
+    }
+
+    fun deleteNearestMeasurement() {
+        val point = mutableUiState.value.selectedPoint ?: return
+        val nearest = mutableUiState.value.measurements.minByOrNull { measurement ->
+            val dx = measurement.point.x - point.x
+            val dy = measurement.point.y - point.y
+            dx * dx + dy * dy
+        } ?: return
+        mutableUiState.value = mutableUiState.value.copy(
+            measurements = mutableUiState.value.measurements.filterNot { it.id == nearest.id },
+        )
     }
 }

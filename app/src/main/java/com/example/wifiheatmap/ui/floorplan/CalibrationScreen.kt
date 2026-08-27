@@ -40,6 +40,7 @@ import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 @Composable
 fun CalibrationScreen(
     onBack: () -> Unit,
+    onOpenSurvey: () -> Unit,
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -133,6 +134,11 @@ fun CalibrationScreen(
                     }
                 }
             }
+            Button(
+                onClick = onOpenSurvey,
+                enabled = uiState.calibration != null,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("다음 · 신호 측정") }
         }
     }
 }

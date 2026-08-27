@@ -16,6 +16,7 @@ import com.example.wifiheatmap.data.model.ConnectedWifi
 import com.example.wifiheatmap.data.model.NearbyAccessPoint
 import com.example.wifiheatmap.data.model.WifiSnapshot
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlin.math.max
@@ -35,6 +36,22 @@ class WifiScanner(context: Context) {
             scanResultsUpdated = scanUpdated,
             capturedAtMillis = System.currentTimeMillis(),
         )
+    }
+
+    suspend fun collectConnectedRssiSamples(
+        durationMillis: Long = 3_000L,
+        intervalMillis: Long = 300L,
+    ): Pair<List<Int>, WifiSnapshot> {
+        val samples = mutableListOf<Int>()
+        val startedAt = SystemClock.elapsedRealtime()
+        var snapshot = readSnapshot(requestActiveScan = true)
+        snapshot.connectedWifi?.rssi?.let(samples::add)
+        while (SystemClock.elapsedRealtime() - startedAt < durationMillis) {
+            delay(intervalMillis)
+            snapshot = readSnapshot(requestActiveScan = false)
+            snapshot.connectedWifi?.rssi?.let(samples::add)
+        }
+        return samples to snapshot
     }
 
     @Suppress("DEPRECATION")
