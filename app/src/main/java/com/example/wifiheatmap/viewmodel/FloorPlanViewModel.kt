@@ -17,6 +17,8 @@ import com.example.wifiheatmap.wifi.WifiRepository
 import com.example.wifiheatmap.wifi.WifiScanner
 import com.example.wifiheatmap.wall.WallDetector
 import com.example.wifiheatmap.wall.WallSegment
+import com.example.wifiheatmap.persistence.ProjectStore
+import com.example.wifiheatmap.persistence.SavedProject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,7 @@ data class FloorPlanUiState(
     val wallStartPoint: NormalizedPoint? = null,
     val isDetectingWalls: Boolean = false,
     val wallError: String? = null,
+    val projectMessage: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -47,6 +50,7 @@ data class FloorPlanUiState(
 class FloorPlanViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = FloorPlanRepository(application)
     private val wifiRepository = WifiRepository(WifiScanner(application))
+    private val projectStore = ProjectStore(application)
     private val mutableUiState = MutableStateFlow(
         FloorPlanUiState(bitmap = repository.loadDefault()),
     )
@@ -251,5 +255,34 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         mutableUiState.value = mutableUiState.value.copy(
             walls = mutableUiState.value.walls.mapNotNull { if (it.id == nearest.id) transform(it) else it },
         )
+    }
+
+    fun saveProject() {
+        val state = mutableUiState.value
+        runCatching {
+            projectStore.save(SavedProject(state.calibration, state.measurements, state.devices, state.walls))
+        }.onSuccess {
+            mutableUiState.value = mutableUiState.value.copy(projectMessage = "측정 프로젝트를 저장했습니다.")
+        }.onFailure { error ->
+            mutableUiState.value = mutableUiState.value.copy(projectMessage = error.message ?: "저장에 실패했습니다.")
+        }
+    }
+
+    fun loadProject() {
+        if (!projectStore.exists()) {
+            mutableUiState.value = mutableUiState.value.copy(projectMessage = "저장된 프로젝트가 없습니다.")
+            return
+        }
+        runCatching { projectStore.load() }.onSuccess { project ->
+            mutableUiState.value = mutableUiState.value.copy(
+                calibration = project.calibration,
+                measurements = project.measurements,
+                devices = project.devices,
+                walls = project.walls,
+                projectMessage = "저장된 프로젝트를 불러왔습니다.",
+            )
+        }.onFailure { error ->
+            mutableUiState.value = mutableUiState.value.copy(projectMessage = error.message ?: "불러오기에 실패했습니다.")
+        }
     }
 }

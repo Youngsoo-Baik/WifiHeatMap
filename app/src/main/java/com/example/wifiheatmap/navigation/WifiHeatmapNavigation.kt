@@ -13,6 +13,7 @@ import com.example.wifiheatmap.ui.heatmap.HeatmapScreen
 import com.example.wifiheatmap.ui.device.DeviceScreen
 import com.example.wifiheatmap.ui.wall.WallEditorScreen
 import com.example.wifiheatmap.ui.heatmap.HybridHeatmapScreen
+import com.example.wifiheatmap.ui.mesh.MeshAnalysisScreen
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 
 private const val WIFI_DEBUG_ROUTE = "wifi_debug"
@@ -23,6 +24,7 @@ private const val HEATMAP_ROUTE = "heatmap"
 private const val DEVICE_ROUTE = "devices"
 private const val WALL_ROUTE = "walls"
 private const val HYBRID_ROUTE = "hybrid"
+private const val MESH_ROUTE = "mesh"
 
 @Composable
 fun WifiHeatmapNavigation() {
@@ -77,7 +79,13 @@ fun WifiHeatmapNavigation() {
         composable(HYBRID_ROUTE) {
             HybridHeatmapScreen(
                 onBack = { navController.popBackStack() },
-                onNext = { },
+                onNext = { navController.navigate(MESH_ROUTE) },
+                viewModel = floorPlanViewModel,
+            )
+        }
+        composable(MESH_ROUTE) {
+            MeshAnalysisScreen(
+                onBack = { navController.popBackStack() },
                 viewModel = floorPlanViewModel,
             )
         }

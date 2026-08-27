@@ -25,15 +25,15 @@
    - 연결 AP와 주변 AP 실제 데이터/freshness 표시
 2. **Phase 2 / 평면도 — 완료**
    - 이미지 선택, Zoom/Pan, normalized tap coordinate
-3. **Phase 3 / Calibration**
+3. **Phase 3 / Calibration — 완료**
    - 두 점 선택, 실제 거리 입력, pixel-to-meter 변환
-4. **Phase 5~6 / Survey와 기본 Heatmap**
+4. **Phase 4~6 / Wi-Fi 측정과 기본 Heatmap — 완료**
    - 2~5초 RSSI 샘플, median, IDW, confidence/unmeasured 처리
-5. **Phase 7 / Wi-Fi 장비**
+5. **Phase 7 / Wi-Fi 장비 — 완료**
    - Router/Mesh/Extender, 복수 BSSID 매핑, 장비별 Heatmap
-6. **Phase 8~9 / 벽과 Hybrid Heatmap**
+6. **Phase 8~9 / 벽과 Hybrid Heatmap — 완료**
    - OpenCV 후보 검출, 수동 보정, propagation + residual IDW
-7. **Phase 10 / Mesh 분석**
+7. **Phase 10 / Mesh 분석 — 완료**
    - Connected AP와 Best AP 비교, roaming candidate 표시
 
 ## Phase 1 완료 결과
@@ -54,4 +54,4 @@
 - Zoom/Pan 초기화를 지원한다.
 - 좌표 정규화 Unit Test와 Debug APK 빌드가 통과한다.
 
-다음 단계는 **Phase 3 Calibration**이다. 평면도에서 두 점을 선택하고 실제 거리를 입력해 pixel-to-meter scale을 계산한다.
+Phase 3~10 구현과 Unit Test, Debug APK 생성까지 완료했다. 실제 Wi-Fi 신호 검증은 Android 실제 기기에서 수행한다.
