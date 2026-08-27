@@ -40,8 +40,14 @@ fun HeatmapScreen(
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val heatmap = remember(uiState.measurements) {
-        uiState.measurements.takeIf { it.isNotEmpty() }?.let { measurements ->
+    val selectedDevice = uiState.devices.firstOrNull { it.id == uiState.selectedHeatmapDeviceId }
+    val filteredMeasurements = remember(uiState.measurements, selectedDevice) {
+        if (selectedDevice == null) uiState.measurements else uiState.measurements.filter {
+            it.bssid?.lowercase() in selectedDevice.bssids
+        }
+    }
+    val heatmap = remember(filteredMeasurements) {
+        filteredMeasurements.takeIf { it.isNotEmpty() }?.let { measurements ->
             IdwHeatmap.generate(measurements.map { HeatmapSample(it.point, it.medianRssi.toDouble()) })
         }
     }
@@ -57,6 +63,16 @@ fun HeatmapScreen(
             modifier = Modifier.fillMaxSize().padding(scaffoldPadding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (uiState.devices.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedHeatmapFilter("전체", selectedDevice == null) { viewModel.selectHeatmapDevice(null) }
+                    uiState.devices.take(3).forEach { device ->
+                        OutlinedHeatmapFilter(device.name, selectedDevice?.id == device.id) {
+                            viewModel.selectHeatmapDevice(device.id)
+                        }
+                    }
+                }
+            }
             Box(
                 modifier = Modifier.fillMaxWidth().weight(1f).background(Color(0xFFE2E8F0), RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
@@ -64,7 +80,7 @@ fun HeatmapScreen(
                 uiState.bitmap?.let { bitmap ->
                     FloorPlanCanvas(
                         bitmap = bitmap,
-                        markers = uiState.measurements.map { FloorPlanMarker(it.point, Color.White, "${it.medianRssi}") },
+                        markers = filteredMeasurements.map { FloorPlanMarker(it.point, Color.White, "${it.medianRssi}") },
                         heatmap = heatmap,
                         resetToken = 0,
                         onPointSelected = viewModel::selectPoint,
@@ -85,6 +101,11 @@ fun HeatmapScreen(
             Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 장비 설정") }
         }
     }
+}
+
+@Composable
+private fun OutlinedHeatmapFilter(label: String, selected: Boolean, onClick: () -> Unit) {
+    androidx.compose.material3.OutlinedButton(onClick = onClick, enabled = !selected) { Text(label) }
 }
 
 @Composable

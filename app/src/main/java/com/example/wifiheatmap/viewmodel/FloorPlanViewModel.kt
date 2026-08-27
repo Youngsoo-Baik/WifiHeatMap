@@ -9,6 +9,8 @@ import com.example.wifiheatmap.calibration.CalibrationData
 import com.example.wifiheatmap.calibration.CalibrationService
 import com.example.wifiheatmap.floorplan.FloorPlanRepository
 import com.example.wifiheatmap.floorplan.NormalizedPoint
+import com.example.wifiheatmap.device.WifiDevice
+import com.example.wifiheatmap.device.WifiDeviceType
 import com.example.wifiheatmap.survey.RssiStatistics
 import com.example.wifiheatmap.survey.SurveyMeasurement
 import com.example.wifiheatmap.wifi.WifiRepository
@@ -29,6 +31,8 @@ data class FloorPlanUiState(
     val measurements: List<SurveyMeasurement> = emptyList(),
     val isMeasuring: Boolean = false,
     val surveyError: String? = null,
+    val devices: List<WifiDevice> = emptyList(),
+    val selectedHeatmapDeviceId: Long? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -170,5 +174,34 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         mutableUiState.value = mutableUiState.value.copy(
             measurements = mutableUiState.value.measurements.filterNot { it.id == nearest.id },
         )
+    }
+
+    fun addDevice(name: String, type: WifiDeviceType, bssidText: String) {
+        val point = mutableUiState.value.selectedPoint ?: return
+        val device = WifiDevice(
+            id = System.currentTimeMillis(),
+            name = name.trim(),
+            type = type,
+            point = point,
+            bssids = bssidText.split(',').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet(),
+        )
+        mutableUiState.value = mutableUiState.value.copy(devices = mutableUiState.value.devices + device)
+    }
+
+    fun deleteNearestDevice() {
+        val point = mutableUiState.value.selectedPoint ?: return
+        val nearest = mutableUiState.value.devices.minByOrNull {
+            val dx = it.point.x - point.x
+            val dy = it.point.y - point.y
+            dx * dx + dy * dy
+        } ?: return
+        mutableUiState.value = mutableUiState.value.copy(
+            devices = mutableUiState.value.devices.filterNot { it.id == nearest.id },
+            selectedHeatmapDeviceId = mutableUiState.value.selectedHeatmapDeviceId.takeUnless { it == nearest.id },
+        )
+    }
+
+    fun selectHeatmapDevice(deviceId: Long?) {
+        mutableUiState.value = mutableUiState.value.copy(selectedHeatmapDeviceId = deviceId)
     }
 }
