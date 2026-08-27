@@ -41,6 +41,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +50,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wifiheatmap.floorplan.FloorPlanCoordinates
 import com.example.wifiheatmap.floorplan.NormalizedPoint
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
@@ -60,7 +61,8 @@ import kotlin.math.roundToInt
 @Composable
 fun FloorPlanScreen(
     onBack: () -> Unit,
-    viewModel: FloorPlanViewModel = viewModel(),
+    onOpenCalibration: () -> Unit,
+    viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var resetToken by remember { mutableIntStateOf(0) }
@@ -141,7 +143,9 @@ fun FloorPlanScreen(
                 uiState.bitmap?.let { bitmap ->
                     FloorPlanCanvas(
                         bitmap = bitmap,
-                        selectedPoint = uiState.selectedPoint,
+                        markers = listOfNotNull(
+                            uiState.selectedPoint?.let { FloorPlanMarker(it, Color(0xFF2563EB)) },
+                        ),
                         resetToken = resetToken,
                         onPointSelected = viewModel::selectPoint,
                     )
@@ -158,14 +162,18 @@ fun FloorPlanScreen(
             }
 
             CoordinateCard(uiState.selectedPoint)
+            Button(
+                onClick = onOpenCalibration,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("다음 · 거리 보정") }
         }
     }
 }
 
 @Composable
-private fun FloorPlanCanvas(
+internal fun FloorPlanCanvas(
     bitmap: Bitmap,
-    selectedPoint: NormalizedPoint?,
+    markers: List<FloorPlanMarker>,
     resetToken: Int,
     onPointSelected: (NormalizedPoint) -> Unit,
 ) {
@@ -243,22 +251,43 @@ private fun FloorPlanCanvas(
             size = Size(bounds.width, bounds.height),
             style = Stroke(width = 1.dp.toPx()),
         )
-        selectedPoint?.let { point ->
+        markers.forEach { floorPlanMarker ->
+            val point = floorPlanMarker.point
             val marker = Offset(
                 x = bounds.left + bounds.width * point.x,
                 y = bounds.top + bounds.height * point.y,
             )
             drawCircle(Color.White, radius = 11.dp.toPx(), center = marker)
-            drawCircle(Color(0xFF2563EB), radius = 7.dp.toPx(), center = marker)
+            drawCircle(floorPlanMarker.color, radius = 7.dp.toPx(), center = marker)
             drawCircle(
-                color = Color(0xFF1D4ED8),
+                color = floorPlanMarker.color,
                 radius = 14.dp.toPx(),
                 center = marker,
                 style = Stroke(width = 2.dp.toPx()),
             )
+            floorPlanMarker.label?.let { label ->
+                drawIntoCanvas { canvas ->
+                    canvas.nativeCanvas.drawText(
+                        label,
+                        marker.x + 12.dp.toPx(),
+                        marker.y - 12.dp.toPx(),
+                        android.graphics.Paint().apply {
+                            color = android.graphics.Color.BLACK
+                            textSize = 16.dp.toPx()
+                            isFakeBoldText = true
+                        },
+                    )
+                }
+            }
         }
     }
 }
+
+internal data class FloorPlanMarker(
+    val point: NormalizedPoint,
+    val color: Color,
+    val label: String? = null,
+)
 
 @Composable
 private fun CoordinateCard(point: NormalizedPoint?) {
