@@ -15,6 +15,9 @@ import com.example.wifiheatmap.survey.RssiStatistics
 import com.example.wifiheatmap.survey.SurveyMeasurement
 import com.example.wifiheatmap.wifi.WifiRepository
 import com.example.wifiheatmap.wifi.WifiScanner
+import com.example.wifiheatmap.wall.WallDetector
+import com.example.wifiheatmap.wall.WallSegment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +36,10 @@ data class FloorPlanUiState(
     val surveyError: String? = null,
     val devices: List<WifiDevice> = emptyList(),
     val selectedHeatmapDeviceId: Long? = null,
+    val walls: List<WallSegment> = emptyList(),
+    val wallStartPoint: NormalizedPoint? = null,
+    val isDetectingWalls: Boolean = false,
+    val wallError: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -203,5 +210,46 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun selectHeatmapDevice(deviceId: Long?) {
         mutableUiState.value = mutableUiState.value.copy(selectedHeatmapDeviceId = deviceId)
+    }
+
+    fun selectWallPoint(point: NormalizedPoint) {
+        val state = mutableUiState.value
+        val start = state.wallStartPoint
+        if (start == null) {
+            mutableUiState.value = state.copy(selectedPoint = point, wallStartPoint = point)
+        } else {
+            mutableUiState.value = state.copy(
+                selectedPoint = point,
+                wallStartPoint = null,
+                walls = state.walls + WallSegment(System.nanoTime(), start, point),
+            )
+        }
+    }
+
+    fun detectWalls() {
+        val bitmap = mutableUiState.value.bitmap ?: return
+        if (mutableUiState.value.isDetectingWalls) return
+        viewModelScope.launch(Dispatchers.Default) {
+            mutableUiState.value = mutableUiState.value.copy(isDetectingWalls = true, wallError = null)
+            runCatching { WallDetector.detect(bitmap) }
+                .onSuccess { walls -> mutableUiState.value = mutableUiState.value.copy(walls = walls, isDetectingWalls = false) }
+                .onFailure { error -> mutableUiState.value = mutableUiState.value.copy(isDetectingWalls = false, wallError = error.message) }
+        }
+    }
+
+    fun deleteNearestWall() = updateNearestWall { null }
+
+    fun toggleNearestWallOpening() = updateNearestWall { it.copy(isOpening = !it.isOpening) }
+
+    private fun updateNearestWall(transform: (WallSegment) -> WallSegment?) {
+        val point = mutableUiState.value.selectedPoint ?: return
+        val nearest = mutableUiState.value.walls.minByOrNull { wall ->
+            val dx = (wall.start.x + wall.end.x) / 2f - point.x
+            val dy = (wall.start.y + wall.end.y) / 2f - point.y
+            dx * dx + dy * dy
+        } ?: return
+        mutableUiState.value = mutableUiState.value.copy(
+            walls = mutableUiState.value.walls.mapNotNull { if (it.id == nearest.id) transform(it) else it },
+        )
     }
 }

@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.wifiheatmap.floorplan.FloorPlanCoordinates
 import com.example.wifiheatmap.floorplan.NormalizedPoint
 import com.example.wifiheatmap.heatmap.HeatmapGrid
+import com.example.wifiheatmap.wall.WallSegment
 import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 import kotlin.math.max
 import kotlin.math.min
@@ -176,6 +177,7 @@ internal fun FloorPlanCanvas(
     bitmap: Bitmap,
     markers: List<FloorPlanMarker>,
     heatmap: HeatmapGrid? = null,
+    walls: List<WallSegment> = emptyList(),
     resetToken: Int,
     onPointSelected: (NormalizedPoint) -> Unit,
 ) {
@@ -266,6 +268,14 @@ internal fun FloorPlanCanvas(
                     )
                 }
             }
+        }
+        walls.forEach { wall ->
+            drawLine(
+                color = if (wall.isOpening) Color(0xFF22C55E) else Color(0xFF7C3AED),
+                start = Offset(bounds.left + bounds.width * wall.start.x, bounds.top + bounds.height * wall.start.y),
+                end = Offset(bounds.left + bounds.width * wall.end.x, bounds.top + bounds.height * wall.end.y),
+                strokeWidth = if (wall.isOpening) 3.dp.toPx() else 5.dp.toPx(),
+            )
         }
         markers.forEach { floorPlanMarker ->
             val point = floorPlanMarker.point
