@@ -17,6 +17,10 @@ data class WifiDevice(
     val point: NormalizedPoint,
     val bssids: Set<String>,
     val radios: List<WifiRadio> = emptyList(),
+    val positionConfidence: Double? = null,
+    val clusterConfidence: Double? = null,
+    val automaticallyEstimated: Boolean? = null,
+    val userConfirmed: Boolean? = null,
 ) {
     val mappedBssids: Set<String>
         get() = bssids + radios.map { it.bssid.lowercase() }

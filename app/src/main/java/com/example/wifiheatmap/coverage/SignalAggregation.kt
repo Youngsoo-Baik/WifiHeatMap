@@ -12,7 +12,7 @@ enum class SignalSourceMode(val displayName: String) {
 }
 
 enum class ResultView(val displayName: String) {
-    COVERAGE("Coverage ○"), HEATMAP("Heatmap"), WEAK_ZONE("Weak Zone"),
+    COVERAGE("Coverage ○"), HEATMAP("Heatmap"), WEAK_ZONE("Weak Zone"), MESH("Mesh"),
 }
 
 data class AggregatedSignal(

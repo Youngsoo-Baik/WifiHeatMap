@@ -1,9 +1,5 @@
 package com.example.wifiheatmap.ui.debug
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -29,6 +25,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -43,17 +40,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wifiheatmap.data.model.ConnectedWifi
 import com.example.wifiheatmap.data.model.NearbyAccessPoint
 import com.example.wifiheatmap.viewmodel.WifiDebugViewModel
+import com.example.wifiheatmap.wifi.hasWifiPermissions
+import com.example.wifiheatmap.wifi.requiredWifiPermissions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WifiDebugScreen(
-    onOpenFloorPlan: () -> Unit,
+    onBackHome: () -> Unit,
     viewModel: WifiDebugViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -75,6 +73,7 @@ fun WifiDebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = { TextButton(onClick = onBackHome) { Text("← 홈") } },
                 title = {
                     Column {
                         Text("Wi-Fi Debug")
@@ -111,8 +110,8 @@ fun WifiDebugScreen(
                     )
                 }
                 item {
-                    Button(onClick = onOpenFloorPlan, modifier = Modifier.fillMaxWidth()) {
-                        Text("Phase 2 · 평면도 열기")
+                    Button(onClick = onBackHome, modifier = Modifier.fillMaxWidth()) {
+                        Text("진단 종료 · 홈으로")
                     }
                 }
                 uiState.errorMessage?.let { error ->
@@ -278,17 +277,6 @@ private fun ErrorCard(message: String) {
             color = MaterialTheme.colorScheme.error,
         )
     }
-}
-
-private fun requiredWifiPermissions(): Array<String> = buildList {
-    add(Manifest.permission.ACCESS_FINE_LOCATION)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        add(Manifest.permission.NEARBY_WIFI_DEVICES)
-    }
-}.toTypedArray()
-
-private fun hasWifiPermissions(context: Context): Boolean = requiredWifiPermissions().all { permission ->
-    ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
 
 private fun formatFreshness(ageMillis: Long?): String = when {

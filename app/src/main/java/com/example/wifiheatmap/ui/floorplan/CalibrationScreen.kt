@@ -40,7 +40,7 @@ import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 @Composable
 fun CalibrationScreen(
     onBack: () -> Unit,
-    onOpenSurvey: () -> Unit,
+    onDone: () -> Unit,
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -135,10 +135,10 @@ fun CalibrationScreen(
                 }
             }
             Button(
-                onClick = onOpenSurvey,
+                onClick = onDone,
                 enabled = uiState.calibration != null,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("다음 · 벽 자동 인식") }
+            ) { Text("적용하고 홈으로") }
         }
     }
 }

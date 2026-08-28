@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wifiheatmap.analysis.AccessPointAnalyzer
 import com.example.wifiheatmap.calibration.CalibrationData
 import com.example.wifiheatmap.calibration.CalibrationService
 import com.example.wifiheatmap.floorplan.FloorPlanRepository
@@ -61,6 +62,10 @@ data class FloorPlanUiState(
     val deviceCandidates: List<NearbyAccessPoint> = emptyList(),
     val isScanningDeviceCandidates: Boolean = false,
     val deviceCandidateError: String? = null,
+    val useWallAwareHeatmap: Boolean = true,
+    val isProjectLoading: Boolean = false,
+    val isProjectSaving: Boolean = false,
+    val hasSavedProject: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -73,6 +78,10 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         FloorPlanUiState(bitmap = repository.loadDefault()),
     )
     val uiState: StateFlow<FloorPlanUiState> = mutableUiState.asStateFlow()
+
+    init {
+        restoreProject(showMissingMessage = false)
+    }
 
     fun loadImage(uri: Uri) {
         viewModelScope.launch {
@@ -103,8 +112,8 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun newProject() {
-        projectStore.clear()
         mutableUiState.value = FloorPlanUiState(bitmap = repository.loadDefault())
+        viewModelScope.launch(Dispatchers.IO) { projectStore.clear() }
     }
 
     fun selectPoint(point: NormalizedPoint) {
@@ -220,6 +229,59 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         )
     }
 
+    fun addAutomaticMeasurements(newMeasurements: List<SurveyMeasurement>) {
+        if (newMeasurements.isEmpty()) {
+            mutableUiState.value = mutableUiState.value.copy(
+                surveyError = "자동 측정에서 저장 가능한 Wi-Fi 관측을 수집하지 못했습니다.",
+            )
+            return
+        }
+        val existingIds = mutableUiState.value.measurements.map { it.id }.toSet()
+        val uniqueMeasurements = newMeasurements.filterNot { it.id in existingIds }
+        val enrichedDevices = uniqueMeasurements.fold(mutableUiState.value.devices) { devices, measurement ->
+            enrichDeviceRadios(devices, measurement)
+        }
+        val allMeasurements = mutableUiState.value.measurements + uniqueMeasurements
+        val analyzedDevices = mergeAutomaticDevices(enrichedDevices, allMeasurements)
+        mutableUiState.value = mutableUiState.value.copy(
+            measurements = allMeasurements,
+            devices = analyzedDevices,
+            surveyError = null,
+            projectMessage = "자동 측정 ${uniqueMeasurements.size}개 위치와 AP 후보 ${analyzedDevices.count { it.automaticallyEstimated == true }}개를 추가했습니다.",
+        )
+    }
+
+    private fun mergeAutomaticDevices(
+        currentDevices: List<WifiDevice>,
+        measurements: List<SurveyMeasurement>,
+    ): List<WifiDevice> {
+        val manualDevices = currentDevices.filter { it.automaticallyEstimated != true }
+        val manualBssids = manualDevices.flatMap { it.mappedBssids }.toSet()
+        val previousAutomatic = currentDevices.filter { it.automaticallyEstimated == true }
+        val candidates = AccessPointAnalyzer.analyze(measurements).filter { candidate ->
+            candidate.radios.none { it.bssid.lowercase() in manualBssids }
+        }
+        val automaticDevices = candidates.map { candidate ->
+            val candidateBssids = candidate.radios.map { it.bssid.lowercase() }.toSet()
+            val previous = previousAutomatic.firstOrNull { device ->
+                device.mappedBssids.intersect(candidateBssids).isNotEmpty()
+            }
+            WifiDevice(
+                id = previous?.id ?: (candidate.id.hashCode().toLong() and Long.MAX_VALUE),
+                name = previous?.name ?: candidate.name,
+                type = previous?.type ?: WifiDeviceType.ROUTER,
+                point = previous?.point?.takeIf { previous.userConfirmed == true } ?: candidate.estimatedPoint,
+                bssids = candidateBssids,
+                radios = candidate.radios,
+                positionConfidence = candidate.positionConfidence,
+                clusterConfidence = candidate.clusterConfidence,
+                automaticallyEstimated = true,
+                userConfirmed = previous?.userConfirmed ?: false,
+            )
+        }
+        return manualDevices + automaticDevices
+    }
+
     fun addDevice(name: String, type: WifiDeviceType, bssidText: String) {
         val point = mutableUiState.value.selectedPoint ?: return
         val normalizedBssids = bssidText.split(',').map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet()
@@ -305,6 +367,32 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
         mutableUiState.value = mutableUiState.value.copy(selectedHeatmapDeviceId = deviceId)
     }
 
+    fun updateEstimatedDevicePosition(deviceId: Long, point: NormalizedPoint) {
+        mutableUiState.value = mutableUiState.value.copy(
+            devices = mutableUiState.value.devices.map { device ->
+                if (device.id == deviceId) device.copy(point = point) else device
+            },
+        )
+    }
+
+    fun confirmEstimatedDevice(deviceId: Long) {
+        mutableUiState.value = mutableUiState.value.copy(
+            devices = mutableUiState.value.devices.map { device ->
+                if (device.id == deviceId) device.copy(userConfirmed = true) else device
+            },
+            projectMessage = "AP 위치를 확인했습니다.",
+        )
+    }
+
+    fun confirmAllEstimatedDevices() {
+        mutableUiState.value = mutableUiState.value.copy(
+            devices = mutableUiState.value.devices.map { device ->
+                if (device.automaticallyEstimated == true) device.copy(userConfirmed = true) else device
+            },
+            projectMessage = "추정 AP를 모두 확인했습니다.",
+        )
+    }
+
     fun selectResultView(resultView: ResultView) {
         mutableUiState.value = mutableUiState.value.copy(resultView = resultView)
     }
@@ -331,6 +419,12 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun toggleWalls() {
         mutableUiState.value = mutableUiState.value.copy(showWalls = !mutableUiState.value.showWalls)
+    }
+
+    fun toggleWallAwareHeatmap() {
+        mutableUiState.value = mutableUiState.value.copy(
+            useWallAwareHeatmap = !mutableUiState.value.useWallAwareHeatmap,
+        )
     }
 
     fun selectWallPoint(point: NormalizedPoint) {
@@ -405,55 +499,84 @@ class FloorPlanViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun saveProject() {
         val state = mutableUiState.value
-        runCatching {
-            val bitmap = state.bitmap ?: error("평면도가 없습니다.")
-            projectStore.save(
-                SavedProject(
-                    calibration = state.calibration,
-                    measurements = state.measurements,
-                    devices = state.devices,
-                    walls = state.walls,
-                    name = state.projectName.ifBlank { "우리집" },
-                    floorPlanSourceName = state.sourceName,
-                    settings = ProjectSettings(
-                        deadZoneThreshold = state.deadZoneThreshold,
-                        selectedBand = state.selectedBand,
-                        signalSourceMode = state.signalSourceMode,
-                        resultView = state.resultView,
+        if (state.isProjectSaving) return
+        mutableUiState.value = state.copy(isProjectSaving = true, projectMessage = null)
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val bitmap = state.bitmap ?: error("평면도가 없습니다.")
+                projectStore.save(
+                    SavedProject(
+                        calibration = state.calibration,
+                        measurements = state.measurements,
+                        devices = state.devices,
+                        walls = state.walls,
+                        name = state.projectName.ifBlank { "우리집" },
+                        floorPlanSourceName = state.sourceName,
+                        settings = ProjectSettings(
+                            deadZoneThreshold = state.deadZoneThreshold,
+                            selectedBand = state.selectedBand,
+                            signalSourceMode = state.signalSourceMode,
+                            resultView = state.resultView,
+                            useWallAwareHeatmap = state.useWallAwareHeatmap,
+                        ),
                     ),
-                ),
-                bitmap,
-            )
-        }.onSuccess {
-            mutableUiState.value = mutableUiState.value.copy(projectMessage = "측정 프로젝트를 저장했습니다.")
-        }.onFailure { error ->
-            mutableUiState.value = mutableUiState.value.copy(projectMessage = error.message ?: "저장에 실패했습니다.")
+                    bitmap,
+                )
+            }.onSuccess {
+                mutableUiState.value = mutableUiState.value.copy(
+                    isProjectSaving = false,
+                    hasSavedProject = true,
+                    projectMessage = "자동 저장했습니다.",
+                )
+            }.onFailure { error ->
+                mutableUiState.value = mutableUiState.value.copy(
+                    isProjectSaving = false,
+                    projectMessage = error.message ?: "저장에 실패했습니다.",
+                )
+            }
         }
     }
 
     fun loadProject() {
+        restoreProject(showMissingMessage = true)
+    }
+
+    private fun restoreProject(showMissingMessage: Boolean) {
+        if (mutableUiState.value.isProjectLoading) return
         if (!projectStore.exists()) {
-            mutableUiState.value = mutableUiState.value.copy(projectMessage = "저장된 프로젝트가 없습니다.")
+            mutableUiState.value = mutableUiState.value.copy(
+                hasSavedProject = false,
+                projectMessage = if (showMissingMessage) "저장된 프로젝트가 없습니다." else null,
+            )
             return
         }
-        runCatching { projectStore.load() }.onSuccess { project ->
-            val settings = project.settings ?: ProjectSettings()
-            mutableUiState.value = mutableUiState.value.copy(
-                bitmap = projectStore.loadFloorPlan() ?: repository.loadDefault(),
-                projectName = project.name?.ifBlank { "우리집" } ?: "우리집",
-                sourceName = project.floorPlanSourceName?.ifBlank { "저장된 평면도" } ?: "저장된 평면도",
-                calibration = project.calibration,
-                measurements = project.measurements,
-                devices = project.devices,
-                walls = project.walls,
-                deadZoneThreshold = settings.deadZoneThreshold.takeIf { it in -85..-60 } ?: -70,
-                selectedBand = settings.selectedBand,
-                signalSourceMode = settings.signalSourceMode,
-                resultView = settings.resultView,
-                projectMessage = "저장된 프로젝트를 불러왔습니다.",
-            )
-        }.onFailure { error ->
-            mutableUiState.value = mutableUiState.value.copy(projectMessage = error.message ?: "불러오기에 실패했습니다.")
+        mutableUiState.value = mutableUiState.value.copy(isProjectLoading = true, projectMessage = null)
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { projectStore.load() to projectStore.loadFloorPlan() }.onSuccess { (project, floorPlan) ->
+                val settings = project.settings ?: ProjectSettings()
+                mutableUiState.value = mutableUiState.value.copy(
+                    bitmap = floorPlan ?: repository.loadDefault(),
+                    projectName = project.name?.ifBlank { "우리집" } ?: "우리집",
+                    sourceName = project.floorPlanSourceName?.ifBlank { "저장된 평면도" } ?: "저장된 평면도",
+                    calibration = project.calibration,
+                    measurements = project.measurements,
+                    devices = project.devices,
+                    walls = project.walls,
+                    deadZoneThreshold = settings.deadZoneThreshold.takeIf { it in -85..-60 } ?: -70,
+                    selectedBand = settings.selectedBand,
+                    signalSourceMode = settings.signalSourceMode,
+                    resultView = settings.resultView,
+                    useWallAwareHeatmap = settings.useWallAwareHeatmap ?: true,
+                    isProjectLoading = false,
+                    hasSavedProject = true,
+                    projectMessage = "저장된 프로젝트를 불러왔습니다.",
+                )
+            }.onFailure { error ->
+                mutableUiState.value = mutableUiState.value.copy(
+                    isProjectLoading = false,
+                    projectMessage = error.message ?: "불러오기에 실패했습니다.",
+                )
+            }
         }
     }
 }

@@ -41,6 +41,17 @@
 - 사용자 설정 음영 임계값과 HIGH/MEDIUM/LOW/UNMEASURED 신뢰도
 - 장비 화면의 주변 BSSID 후보 검색 및 Band별 Radio 저장
 - `project.json + floorplan.png` 프로젝트 묶음 저장과 기존 JSON 호환 로드
+- 앱 실행 즉시 Home 결과 화면 표시 및 저장 프로젝트 자동 복원
+- Coverage / Heatmap / Weak Zone / Mesh 통합 결과 탭
+- 설정 허브에서 평면도·축척·벽·장비를 독립적으로 편집
+- 설정 적용 및 측정 완료 후 Home 자동 복귀
+- Wi-Fi Debug를 사용자 흐름에서 분리한 진단 화면
+- Step Detector + Rotation Vector 기반 PDR 자동 이동 경로
+- 자동 이동 중 2초 주기 Wi-Fi 관측과 제한적 Active Scan
+- 자동 측정 종료 시 측정점 변환·AP 분석·프로젝트 저장
+- 연결 SSID 기반 외부 AP 필터와 spatial fingerprint BSSID 군집화
+- RSSI 가중 중심 기반 물리 AP 위치·신뢰도 자동 추정
+- 추정 AP만 주황색으로 구분하고 필요한 위치만 보정·확정하는 검토 화면
 
 기존 Java Canvas 평면도·히트맵 프로토타입은 후속 Compose Survey 화면 마이그레이션을 위해 소스에 보존되어 있으며 현재 Launcher 화면에서는 사용하지 않습니다.
 
@@ -51,7 +62,11 @@
 3. 실제 Android 기기를 연결합니다.
 4. `app` 실행 구성을 선택하고 Run을 누릅니다.
 5. 위치 및 근처 기기 권한을 허용하고 기기의 위치 서비스를 켭니다.
-6. 평면도 → Calibration → 벽 → 장비/BSSID → Survey → 결과 화면 순서로 진행합니다.
+6. Home에서 기본 평면도와 결과 화면을 확인합니다.
+7. 필요한 설정만 `설정`에서 수정한 뒤 `적용하고 홈으로`를 누릅니다.
+8. `자동 측정 시작`에서 시작 위치와 방향을 지정한 뒤 집 안을 천천히 이동합니다.
+9. 측정을 종료하면 측정점과 추정 AP가 저장되고 Home 결과로 복귀합니다.
+10. 주황색 추정 AP가 잘못된 경우에만 `추정 AP 확인`에서 위치를 수정합니다.
 
 ```bash
 ./gradlew :app:assembleDebug
@@ -77,5 +92,9 @@ releases/wifi-heatmap-v1.1.0-debug.apk
 - Android 에뮬레이터는 실제 Wi-Fi radio/BSSID 측정을 재현하지 못하므로 실제 기기 검증이 필요합니다.
 - Active Scan은 Android throttling 정책에 따라 실패할 수 있으며 이 경우 캐시 결과가 표시됩니다.
 - 에뮬레이터에서는 UI와 저장 흐름을 검증할 수 있지만 실제 RSSI/로밍 분석은 Android 실제 기기가 필요합니다.
+- PDR 경로는 보행·센서 오차가 누적될 수 있으며 ARCore 보정 모드는 아직 구현하지 않았습니다.
+- AP 위치는 현재 RSSI weighted centroid 1차 추정이며 벽 기반 grid optimizer는 후속 단계입니다.
 
-전체 차이 분석과 단계 계획은 [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md)를 참고하세요.
+자동 측정과 UX 개편 단계는 [`docs/AUTOMATIC_SURVEY_UX_IMPLEMENTATION_PLAN.md`](docs/AUTOMATIC_SURVEY_UX_IMPLEMENTATION_PLAN.md)를 참고하세요.
+
+전체 사용자 흐름, 기술 구조와 구현 현황은 [`docs/IMPLEMENTATION_SUMMARY.md`](docs/IMPLEMENTATION_SUMMARY.md)를 참고하세요.

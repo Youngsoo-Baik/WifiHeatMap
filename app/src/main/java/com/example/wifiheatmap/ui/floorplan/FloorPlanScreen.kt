@@ -65,7 +65,7 @@ import kotlin.math.roundToInt
 @Composable
 fun FloorPlanScreen(
     onBack: () -> Unit,
-    onOpenCalibration: () -> Unit,
+    onDone: () -> Unit,
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -176,9 +176,9 @@ fun FloorPlanScreen(
 
             CoordinateCard(uiState.selectedPoint)
             Button(
-                onClick = onOpenCalibration,
+                onClick = onDone,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("다음 · 거리 보정") }
+            ) { Text("적용하고 홈으로") }
         }
     }
 }
@@ -192,6 +192,7 @@ internal fun FloorPlanCanvas(
     coverageRings: List<FloorPlanCoverageRing> = emptyList(),
     deadZoneOnly: Boolean = false,
     deadZoneThreshold: Int = -70,
+    trackingPath: List<NormalizedPoint> = emptyList(),
     resetToken: Int,
     onPointSelected: (NormalizedPoint) -> Unit,
 ) {
@@ -299,6 +300,20 @@ internal fun FloorPlanCanvas(
                 radius = displayedRadius,
                 center = center,
                 style = Stroke(width = 2.dp.toPx()),
+            )
+        }
+        trackingPath.zipWithNext().forEach { (startPoint, endPoint) ->
+            drawLine(
+                color = Color(0xFF0891B2),
+                start = Offset(
+                    bounds.left + bounds.width * startPoint.x,
+                    bounds.top + bounds.height * startPoint.y,
+                ),
+                end = Offset(
+                    bounds.left + bounds.width * endPoint.x,
+                    bounds.top + bounds.height * endPoint.y,
+                ),
+                strokeWidth = 5.dp.toPx(),
             )
         }
         walls.forEach { wall ->

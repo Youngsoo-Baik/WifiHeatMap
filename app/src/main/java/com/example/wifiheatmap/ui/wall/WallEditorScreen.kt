@@ -33,7 +33,7 @@ import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WallEditorScreen(onBack: () -> Unit, onNext: () -> Unit, viewModel: FloorPlanViewModel) {
+fun WallEditorScreen(onBack: () -> Unit, onDone: () -> Unit, viewModel: FloorPlanViewModel) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
@@ -79,7 +79,7 @@ fun WallEditorScreen(onBack: () -> Unit, onNext: () -> Unit, viewModel: FloorPla
                     }
                 }
             }
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 장비 설정") }
+            Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("적용하고 홈으로") }
         }
     }
 }

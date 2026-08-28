@@ -39,7 +39,7 @@ import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 @Composable
 fun SurveyScreen(
     onBack: () -> Unit,
-    onOpenHeatmap: () -> Unit,
+    onDone: () -> Unit,
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -126,10 +126,10 @@ fun SurveyScreen(
                 }
             }
             Button(
-                onClick = onOpenHeatmap,
+                onClick = onDone,
                 enabled = uiState.measurements.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("다음 · 히트맵 보기") }
+            ) { Text("측정 완료 · 결과 보기") }
         }
     }
 }

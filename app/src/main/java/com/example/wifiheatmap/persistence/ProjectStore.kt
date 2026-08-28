@@ -27,6 +27,7 @@ data class ProjectSettings(
     val selectedBand: WifiBand? = null,
     val signalSourceMode: SignalSourceMode = SignalSourceMode.DEVICE,
     val resultView: ResultView = ResultView.COVERAGE,
+    val useWallAwareHeatmap: Boolean? = true,
 )
 
 object ProjectCodec {

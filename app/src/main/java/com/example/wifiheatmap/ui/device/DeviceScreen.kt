@@ -49,7 +49,7 @@ import com.example.wifiheatmap.viewmodel.FloorPlanViewModel
 @Composable
 fun DeviceScreen(
     onBack: () -> Unit,
-    onNext: () -> Unit,
+    onDone: () -> Unit,
     viewModel: FloorPlanViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -166,7 +166,7 @@ fun DeviceScreen(
                     }
                 }
             }
-            Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) { Text("다음 · 신호 측정") }
+            Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("적용하고 홈으로") }
         }
     }
 }
